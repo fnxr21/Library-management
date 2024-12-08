@@ -1,0 +1,61 @@
+syntax = "proto3"; 
+
+package protobuf_author;
+
+option go_package="/protobuf_author";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+
+
+message ProtoAuthorRepo {
+   message ProtoAuthor {
+    uint64 ID = 1; // Use uint64 for the database ID.
+    string Name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
+    string Biography = 3 [(google.api.field_behavior) = REQUIRED, json_name = "biography"];
+}
+    repeated ProtoAuthor author = 1;
+}
+
+message UpdateRequest {
+    google.protobuf.Int64Value ID = 1;
+    ProtoAuthorRepo.ProtoAuthor Author = 2;
+}
+
+message DeleteAuthorResponse {
+    string message = 1;
+}
+
+
+service AuthorService {
+	rpc CreateAuthor(ProtoAuthorRepo.ProtoAuthor) returns (ProtoAuthorRepo.ProtoAuthor) {
+        option (google.api.http) = {
+            post: "/api/author"
+            body: "*"
+        };
+    };
+    rpc GetAuthorList(google.protobuf.Empty) returns (stream ProtoAuthorRepo.ProtoAuthor) {
+        option (google.api.http) = {
+            get: "/api/authors"
+        };        
+    };
+    rpc GetAuthorById(google.protobuf.Int64Value) returns (ProtoAuthorRepo.ProtoAuthor) {
+        option (google.api.http) = {
+            get: "/api/author/{value}"
+        };        
+    };
+	rpc UpdateAuthor(UpdateRequest) returns (ProtoAuthorRepo.ProtoAuthor) {
+        option (google.api.http) = {
+            put: "/api/author/{ID}"
+            body: "*"      
+        };
+    };
+	rpc DeleteAuthor(google.protobuf.Int64Value) returns (DeleteAuthorResponse) {
+        option (google.api.http) = {
+            delete: "/api/author/{value}"
+        };        
+    };
+}
+

@@ -1,0 +1,60 @@
+version: "3.9" # Specify the Docker Compose version
+
+services:
+  authordb:
+    image: postgres:latest # Consider using a specific version (e.g., postgres:14)
+    container_name: author-db
+    restart: always
+    environment:
+      POSTGRES_USER: root21!
+      POSTGRES_PASSWORD: root21!Save # Use environment variables for security
+      POSTGRES_DB: author_mst
+    ports:
+      - ${DB_PORT_AUTHOR}:${DB_DEFAULTPORT}
+    volumes:
+      - authordb_data:/var/lib/postgresql/data
+
+  # bookdb:
+  #   image: postgres:latest # Consider using a specific version (e.g., postgres:14)
+  #   container_name: book-db
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: ${USER_DB}
+  #     POSTGRES_PASSWORD: ${PASSWORD_DB} # Use environment variables for security
+  #     POSTGRES_DB: ${BOOK_DATABASE}
+  #   ports:
+  #     - "4013:5432"
+  #   volumes:
+  #     - bookdb_data:/var/lib/postgresql/data
+
+  # categorydb:
+  #   image: postgres:latest # Consider using a specific version (e.g., postgres:14)
+  #   container_name: category-db
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: ${USER_DB}
+  #     POSTGRES_PASSWORD: ${PASSWORD_DB} # Use environment variables for security
+  #     POSTGRES_DB: ${CATEGORY_DATABASE}
+  #   ports:
+  #     - "4014:5432"
+  #   volumes:
+  #     - categorydb_data:/var/lib/postgresql/data
+
+  # userdb:
+  #   image: postgres:latest # Consider using a specific version (e.g., postgres:14)
+  #   container_name: user-db
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: ${USER_DB}
+  #     POSTGRES_PASSWORD: ${PASSWORD_DB} # Use environment variables for security
+  #     POSTGRES_DB: ${USER_DATABASE}
+  #   ports:
+  #     - "4011:5432"
+  #   volumes:
+  #     - userdb_data:/var/lib/postgresql/data
+
+volumes:
+  authordb_data:
+  # bookdb_data:
+  # categorydb_data:
+  # userdb_data:
