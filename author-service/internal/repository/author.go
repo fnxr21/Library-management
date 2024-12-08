@@ -17,7 +17,7 @@ func RepositoryAuthor(db *gorm.DB) *repository {
 
 type AuthorService interface {
 	CreateAuthor(ctx context.Context, author model.Author) (model.Author, error)
-	GetAuthorList(ctx context.Context) ([]model.Author, error)
+	GetAuthorList() ([]model.Author, error)
 	GetAuthorById(ctx context.Context, id int) (model.Author, error)
 	UpdateAuthor(ctx context.Context, author model.Author) (model.Author, error)
 	DeleteAuthor(ctx context.Context, author model.Author) (model.Author, error)
@@ -30,9 +30,9 @@ func (r *repository) CreateAuthor(ctx context.Context, author model.Author) (mod
 }
 
 // GetAuthorList retrieves all authors from the database.
-func (r *repository) GetAuthorList(ctx context.Context) ([]model.Author, error) {
+func (r *repository) GetAuthorList() ([]model.Author, error) {
 	var authors []model.Author
-	err := r.db.WithContext(ctx).Find(&authors).Error
+	err := r.db.Find(&authors).Error
 	return authors, err
 }
 

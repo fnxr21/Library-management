@@ -127,7 +127,7 @@ func request_AuthorService_UpdateAuthor_0(ctx context.Context, marshaler runtime
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "ID")
 	}
-	protoReq.ID, err = runtime.Int64Value(val)
+	protoReq.ID, err = runtime.Uint64(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "ID", err)
 	}
@@ -148,7 +148,7 @@ func local_request_AuthorService_UpdateAuthor_0(ctx context.Context, marshaler r
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "ID")
 	}
-	protoReq.ID, err = runtime.Int64Value(val)
+	protoReq.ID, err = runtime.Uint64(val)
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "ID", err)
 	}

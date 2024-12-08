@@ -20,8 +20,9 @@ message ProtoAuthorRepo {
 }
 
 message UpdateRequest {
-    google.protobuf.Int64Value ID = 1;
-    ProtoAuthorRepo.ProtoAuthor Author = 2;
+    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
+    string Name = 2 ;
+    string Biography=3;
 }
 
 message DeleteAuthorResponse {
