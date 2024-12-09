@@ -26,18 +26,19 @@ services:
       - ${DB_PORT_CATEGORY}:${DB_DEFAULTPORT}
     volumes:
       - categorydb_data:/var/lib/postgresql/data
-  # bookdb:
-  #   image: postgres:latest # Consider using a specific version (e.g., postgres:14)
-  #   container_name: book-db
-  #   restart: always
-  #   environment:
-  #     POSTGRES_USER: ${USER_DB}
-  #     POSTGRES_PASSWORD: ${PASSWORD_DB} # Use environment variables for security
-  #     POSTGRES_DB: ${BOOK_DATABASE}
-  #   ports:
-  #     - "4013:5432"
-  #   volumes:
-  #     - bookdb_data:/var/lib/postgresql/data
+
+  bookdb:
+    image: postgres:latest # Consider using a specific version (e.g., postgres:14)
+    container_name: book-db
+    restart: always
+    environment:
+      POSTGRES_USER: root21!
+      POSTGRES_PASSWORD: root21!Save # Use environment variables for security
+      POSTGRES_DB: book_mst
+    ports:
+      - ${DB_PORT_BOOOK}:${DB_DEFAULTPORT}
+    volumes:
+      - bookdb_data:/var/lib/postgresql/data
 
   # userdb:
   #   image: postgres:latest # Consider using a specific version (e.g., postgres:14)

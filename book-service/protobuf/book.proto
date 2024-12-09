@@ -1,0 +1,69 @@
+syntax = "proto3"; 
+
+package protobuf_book;
+
+option go_package="/protobuf_book";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+
+
+message ProtoBookRepo {
+   message ProtoBook {
+    uint64 ID = 1; // Use uint64 for the database ID.
+    string name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
+    string description = 3 [(google.api.field_behavior) = REQUIRED, json_name = "description"];
+    uint64 author_id = 4 [(google.api.field_behavior) = REQUIRED, json_name = "authorId"];
+    string author = 5 [(google.api.field_behavior) = REQUIRED, json_name = "author"];
+    int32 stock = 6 [(google.api.field_behavior) = REQUIRED, json_name = "stock"];
+     repeated string categories = 7 [(google.api.field_behavior) = OPTIONAL, json_name = "categories"];
+}
+    repeated ProtoBook book = 1;
+}
+
+message UpdateRequest {
+    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
+    string name = 2 ;
+    string description = 3 ;
+    uint64 author_id = 4 ;
+    string author = 5 ;
+    int32 stock = 6 ;
+}
+
+message DeleteBookResponse {
+    string message = 1;
+}
+
+
+service BookService {
+	rpc CreateBook(ProtoBookRepo.ProtoBook) returns (ProtoBookRepo.ProtoBook) {
+        option (google.api.http) = {
+            post: "/api/book"
+            body: "*"
+        };
+    };
+    rpc GetBookList(google.protobuf.Empty) returns (stream ProtoBookRepo.ProtoBook) {
+        option (google.api.http) = {
+            get: "/api/books"
+        };        
+    };
+    rpc GetBookById(google.protobuf.Int64Value) returns (ProtoBookRepo.ProtoBook) {
+        option (google.api.http) = {
+            get: "/api/book/{value}"
+        };        
+    };
+	rpc UpdateBook(UpdateRequest) returns (ProtoBookRepo.ProtoBook) {
+        option (google.api.http) = {
+            put: "/api/book/{ID}"
+            body: "*"      
+        };
+    };
+	rpc DeleteBook(google.protobuf.Int64Value) returns (DeleteBookResponse) {
+        option (google.api.http) = {
+            delete: "/api/book/{value}"
+        };        
+    };
+}
+
