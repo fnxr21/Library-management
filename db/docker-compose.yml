@@ -36,7 +36,7 @@ services:
       POSTGRES_PASSWORD: root21!Save # Use environment variables for security
       POSTGRES_DB: book_mst
     ports:
-      - ${DB_PORT_BOOOK}:${DB_DEFAULTPORT}
+      - ${DB_PORT_BOOK}:${DB_DEFAULTPORT}
     volumes:
       - bookdb_data:/var/lib/postgresql/data
 
@@ -55,6 +55,6 @@ services:
 
 volumes:
   authordb_data:
-  # bookdb_data:
+  bookdb_data:
   categorydb_data:
   # userdb_data:

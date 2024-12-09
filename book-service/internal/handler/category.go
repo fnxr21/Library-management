@@ -1,66 +1,46 @@
 package handler
 
 import (
-	"context"
-	"github.com/fnxr21/book-service/internal/model"
-	"github.com/fnxr21/book-service/internal/repository"
-	"github.com/fnxr21/book-service/protobuf/protobuf_book"
-	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 )
 
-type bookServices struct {
-	protobuf_book.UnimplementedBookServiceServer
-	repository repository.BookService
+type Category struct {
+	ID          string `json:"ID"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
-func HandlerBook(BookRepository repository.BookService) *bookServices {
-	return &bookServices{repository: BookRepository}
-}
-func (r *bookServices) CreateBook(ctx context.Context, req *protobuf_book.ProtoBookRepo_ProtoBook) (*protobuf_book.ProtoBookRepo_ProtoBook, error) {
-	ok := model.Book{
-		Name:        req.Name,
-		Description: req.Description,
+func GetCategories() ([]Category, error) {
+	url := "http://localhost:6002/api/categorys"
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Println("[ERROR] : Failed to fetch categories", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Println("[ERROR] : Non-OK HTTP status:", resp.StatusCode)
+		return nil, fmt.Errorf("failed to fetch categories, status code: %d", resp.StatusCode)
 	}
 
-	log.Println(ok, "check")
-
-	ok, err := r.repository.CreateBook(ctx, ok)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("[ERROR] : ", err.Error())
+		log.Println("[ERROR] : Failed to read response body", err)
 		return nil, err
 	}
 
-	return ToProtoBook(ok), nil
-}
-func (r *bookServices) GetBookById(ctx context.Context, id *wrapperspb.Int64Value) (*protobuf_book.ProtoBookRepo_ProtoBook, error) {
-
-	data, err := r.repository.GetBookById(ctx, int(id.Value))
-	if err != nil {
-		log.Println("[ERROR] : ", err.Error())
+	var result struct {
+		Result []Category `json:"result"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		log.Println("[ERROR] : Failed to unmarshal response", err)
 		return nil, err
 	}
-	return ToProtoBook(data), nil
-}
-func (r *bookServices) GetBookList(_ *emptypb.Empty, stream protobuf_book.BookService_GetBookListServer) error {
 
-	book, err := r.repository.GetBookList()
-	if err != nil {
-		log.Println("[ERROR] : ", err.Error())
-		return err
-	}
-	for _, value := range book {
-		if err := stream.Send(ToProtoBook(value)); err != nil {
-			return err
-		}
-	}
-	return nil
-
-}
-
-func ToProtoBook(book model.Book) *protobuf_book.ProtoBookRepo_ProtoBook {
-	return &protobuf_book.ProtoBookRepo_ProtoBook{
-		ID: uint64(book.ID), Name: book.Name, Description: book.Description,
-	}
+	return result.Result, nil
 }

@@ -22,6 +22,9 @@ message ProtoBookRepo {
 }
     repeated ProtoBook book = 1;
 }
+message ProtoBookCategory{
+      repeated string categories = 7 [(google.api.field_behavior) = OPTIONAL, json_name = "categories"];
+}
 
 message UpdateRequest {
     uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.

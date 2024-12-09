@@ -1,4 +1,2 @@
-protoc --go_out=protobuf \
- --go-grpc_out=protobuf --go-grpc_opt=require_unimplemented_servers=false\
- --grpc-gateway_out=protobuf \
- protobuf/author.proto
+1.jwt diambil dari user interface sebagain sign
+setiap service dipasang jwt 
