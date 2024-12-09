@@ -1,0 +1,62 @@
+syntax = "proto3"; 
+
+package protobuf_category;
+
+option go_package="/protobuf_category";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+
+
+message ProtoCategoryRepo {
+   message ProtoCategory {
+    uint64 ID = 1; // Use uint64 for the database ID.
+    string Name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
+    string Description = 3 [(google.api.field_behavior) = REQUIRED, json_name = "description"];
+}
+    repeated ProtoCategory category = 1;
+}
+
+message UpdateRequest {
+    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
+    string Name = 2 ;
+    string Description=3;
+}
+
+message DeleteCategoryResponse {
+    string message = 1;
+}
+
+
+service CategoryService {
+	rpc CreateCategory(ProtoCategoryRepo.ProtoCategory) returns (ProtoCategoryRepo.ProtoCategory) {
+        option (google.api.http) = {
+            post: "/api/category"
+            body: "*"
+        };
+    };
+    rpc GetCategoryList(google.protobuf.Empty) returns (stream ProtoCategoryRepo.ProtoCategory) {
+        option (google.api.http) = {
+            get: "/api/categorys"
+        };        
+    };
+    rpc GetCategoryById(google.protobuf.Int64Value) returns (ProtoCategoryRepo.ProtoCategory) {
+        option (google.api.http) = {
+            get: "/api/category/{value}"
+        };        
+    };
+	rpc UpdateCategory(UpdateRequest) returns (ProtoCategoryRepo.ProtoCategory) {
+        option (google.api.http) = {
+            put: "/api/category/{ID}"
+            body: "*"      
+        };
+    };
+	rpc DeleteCategory(google.protobuf.Int64Value) returns (DeleteCategoryResponse) {
+        option (google.api.http) = {
+            delete: "/api/category/{value}"
+        };        
+    };
+}
+
