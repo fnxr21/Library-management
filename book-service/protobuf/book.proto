@@ -1,72 +1,104 @@
-syntax = "proto3"; 
+// book.proto is the contract for book-service. See author.proto for the
+// general layout; this file adds stock handling and links to other services.
+syntax = "proto3";
 
-package protobuf_book;
+package library.book;
 
-option go_package="/protobuf_book";
+// Generated Go code goes to protobuf/bookpb, package bookpb.
+option go_package = "/bookpb";
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/wrappers.proto";
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
 
-
-message ProtoBookRepo {
-   message ProtoBook {
-    uint64 ID = 1; // Use uint64 for the database ID.
-    string name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
-    string description = 3 [(google.api.field_behavior) = REQUIRED, json_name = "description"];
-    uint64 author_id = 4 [(google.api.field_behavior) = REQUIRED, json_name = "authorId"];
-    string author = 5 [(google.api.field_behavior) = REQUIRED, json_name = "author"];
-    int32 stock = 6 [(google.api.field_behavior) = REQUIRED, json_name = "stock"];
-     repeated string categories = 7 [(google.api.field_behavior) = OPTIONAL, json_name = "categories"];
-}
-    repeated ProtoBook book = 1;
-}
-message ProtoBookCategory{
-      repeated string categories = 7 [(google.api.field_behavior) = OPTIONAL, json_name = "categories"];
+message Book {
+    uint64 id = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+    string name = 2;
+    string description = 3;
+    uint64 author_id = 4;
+    // Copied from author-service when the book is saved, so reading a book
+    // does not need a call to author-service.
+    string author_name = 5 [(google.api.field_behavior) = OUTPUT_ONLY];
+    int32 stock = 6;
+    repeated BookCategory categories = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
 }
 
-message UpdateRequest {
-    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
-    string name = 2 ;
-    string description = 3 ;
-    uint64 author_id = 4 ;
-    string author = 5 ;
-    int32 stock = 6 ;
+// BookCategory is a category linked to a book, with its name copied from
+// category-service.
+message BookCategory {
+    uint64 id = 1;
+    string name = 2;
+}
+
+message CreateBookRequest {
+    string name = 1 [(google.api.field_behavior) = REQUIRED];
+    string description = 2;
+    uint64 author_id = 3 [(google.api.field_behavior) = REQUIRED];
+    int32 stock = 4;
+    repeated uint64 category_ids = 5;
+}
+
+message GetBookRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// UpdateBookRequest changes only the fields that are set. Stock is not here
+// on purpose: it changes only through AdjustStock, which is race-safe.
+message UpdateBookRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+    string name = 2;
+    string description = 3;
+    uint64 author_id = 4;
+    // When non-empty, replaces the book's categories.
+    repeated uint64 category_ids = 5;
+}
+
+message AdjustStockRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+    // Positive adds copies, negative removes them. Stock never goes below zero.
+    int32 delta = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message DeleteBookRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
 message DeleteBookResponse {
     string message = 1;
 }
 
-
 service BookService {
-	rpc CreateBook(ProtoBookRepo.ProtoBook) returns (ProtoBookRepo.ProtoBook) {
+    rpc CreateBook(CreateBookRequest) returns (Book) {
         option (google.api.http) = {
             post: "/api/book"
             body: "*"
         };
     };
-    rpc GetBookList(google.protobuf.Empty) returns (stream ProtoBookRepo.ProtoBook) {
+    rpc ListBooks(google.protobuf.Empty) returns (stream Book) {
         option (google.api.http) = {
             get: "/api/books"
-        };        
-    };
-    rpc GetBookById(google.protobuf.Int64Value) returns (ProtoBookRepo.ProtoBook) {
-        option (google.api.http) = {
-            get: "/api/book/{value}"
-        };        
-    };
-	rpc UpdateBook(UpdateRequest) returns (ProtoBookRepo.ProtoBook) {
-        option (google.api.http) = {
-            put: "/api/book/{ID}"
-            body: "*"      
         };
     };
-	rpc DeleteBook(google.protobuf.Int64Value) returns (DeleteBookResponse) {
+    rpc GetBook(GetBookRequest) returns (Book) {
         option (google.api.http) = {
-            delete: "/api/book/{value}"
-        };        
+            get: "/api/book/{id}"
+        };
+    };
+    rpc UpdateBook(UpdateBookRequest) returns (Book) {
+        option (google.api.http) = {
+            put: "/api/book/{id}"
+            body: "*"
+        };
+    };
+    rpc AdjustStock(AdjustStockRequest) returns (Book) {
+        option (google.api.http) = {
+            post: "/api/book/{id}/stock"
+            body: "*"
+        };
+    };
+    rpc DeleteBook(DeleteBookRequest) returns (DeleteBookResponse) {
+        option (google.api.http) = {
+            delete: "/api/book/{id}"
+        };
     };
 }
-
