@@ -1,3 +1,8 @@
+// Package repository is the only layer that talks to the database.
+//
+// Handlers depend on the AuthorRepository interface, not on GORM. That keeps
+// SQL out of the handlers and lets tests swap in an in-memory fake
+// (see internal/handler/author_test.go).
 package repository
 
 import (
@@ -7,51 +12,51 @@ import (
 	"gorm.io/gorm"
 )
 
-type repository struct {
+// AuthorRepository lists every database operation author-service needs.
+// Missing rows come back as gorm.ErrRecordNotFound.
+type AuthorRepository interface {
+	Create(ctx context.Context, author model.Author) (model.Author, error)
+	List(ctx context.Context) ([]model.Author, error)
+	GetByID(ctx context.Context, id uint64) (model.Author, error)
+	Update(ctx context.Context, author model.Author) (model.Author, error)
+	Delete(ctx context.Context, author model.Author) error
+}
+
+type authorRepository struct {
 	db *gorm.DB
 }
 
-func RepositoryAuthor(db *gorm.DB) *repository {
-	return &repository{db}
+func NewAuthorRepository(db *gorm.DB) AuthorRepository {
+	return &authorRepository{db: db}
 }
 
-type AuthorService interface {
-	CreateAuthor(ctx context.Context, author model.Author) (model.Author, error)
-	GetAuthorList() ([]model.Author, error)
-	GetAuthorById(ctx context.Context, id int) (model.Author, error)
-	UpdateAuthor(ctx context.Context, author model.Author) (model.Author, error)
-	DeleteAuthor(ctx context.Context, author model.Author) (model.Author, error)
-}
+// Every method passes ctx to GORM with WithContext. If the client gives up
+// (timeout, closed connection), the query is cancelled too.
 
-// CreateAuthor creates a new author in the database.
-func (r *repository) CreateAuthor(ctx context.Context, author model.Author) (model.Author, error) {
+func (r *authorRepository) Create(ctx context.Context, author model.Author) (model.Author, error) {
 	err := r.db.WithContext(ctx).Create(&author).Error
 	return author, err
 }
 
-// GetAuthorList retrieves all authors from the database.
-func (r *repository) GetAuthorList() ([]model.Author, error) {
+func (r *authorRepository) List(ctx context.Context) ([]model.Author, error) {
 	var authors []model.Author
-	err := r.db.Find(&authors).Error
+	err := r.db.WithContext(ctx).Find(&authors).Error
 	return authors, err
 }
 
-// GetAuthorById retrieves a specific author by their ID.
-func (r *repository) GetAuthorById(ctx context.Context, id int) (model.Author, error) {
+func (r *authorRepository) GetByID(ctx context.Context, id uint64) (model.Author, error) {
 	var author model.Author
 	err := r.db.WithContext(ctx).First(&author, id).Error
 	return author, err
 }
 
-// UpdateAuthor updates an existing author in the database.
-func (r *repository) UpdateAuthor(ctx context.Context, author model.Author) (model.Author, error) {
+// Update saves all fields of the author.
+func (r *authorRepository) Update(ctx context.Context, author model.Author) (model.Author, error) {
 	err := r.db.WithContext(ctx).Save(&author).Error
 	return author, err
 }
 
-// DeleteAuthor deletes an author from the database.
-func (r *repository) DeleteAuthor(ctx context.Context, author model.Author) (model.Author, error) {
-	err := r.db.WithContext(ctx).Delete(&author).Error
-	return author, err
+// Delete soft-deletes the author (see model.Author).
+func (r *authorRepository) Delete(ctx context.Context, author model.Author) error {
+	return r.db.WithContext(ctx).Delete(&author).Error
 }
-

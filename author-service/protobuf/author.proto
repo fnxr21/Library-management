@@ -1,62 +1,86 @@
-syntax = "proto3"; 
+// author.proto is the contract for author-service.
+//
+// One .proto file generates three things (see Makefile):
+//   - authorpb/author.pb.go       Go structs for every message
+//   - authorpb/author_grpc.pb.go  the gRPC server interface and client
+//   - REST handlers (in user-service) from the google.api.http options below
+//
+// Naming follows the protobuf style guide: messages are PascalCase, fields are
+// snake_case (JSON turns them into camelCase, e.g. author_id -> authorId), and
+// each RPC has its own <Rpc>Request message so fields can be added later
+// without breaking other RPCs.
+syntax = "proto3";
 
-package protobuf_author;
+package library.author;
 
-option go_package="/protobuf_author";
+// Generated Go code goes to protobuf/authorpb, package authorpb.
+option go_package = "/authorpb";
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/wrappers.proto";
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
 
-
-message ProtoAuthorRepo {
-   message ProtoAuthor {
-    uint64 ID = 1; // Use uint64 for the database ID.
-    string Name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
-    string Biography = 3 [(google.api.field_behavior) = REQUIRED, json_name = "biography"];
-}
-    repeated ProtoAuthor author = 1;
+// Author is what API clients see. It is not the database model; the handler
+// converts between the two (see internal/handler).
+message Author {
+    uint64 id = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+    string name = 2;
+    string biography = 3;
 }
 
-message UpdateRequest {
-    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
-    string Name = 2 ;
-    string Biography=3;
+message CreateAuthorRequest {
+    string name = 1 [(google.api.field_behavior) = REQUIRED];
+    string biography = 2;
+}
+
+message GetAuthorRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// UpdateAuthorRequest changes only the fields that are set (non-empty).
+message UpdateAuthorRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+    string name = 2;
+    string biography = 3;
+}
+
+message DeleteAuthorRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
 message DeleteAuthorResponse {
     string message = 1;
 }
 
-
 service AuthorService {
-	rpc CreateAuthor(ProtoAuthorRepo.ProtoAuthor) returns (ProtoAuthorRepo.ProtoAuthor) {
+    rpc CreateAuthor(CreateAuthorRequest) returns (Author) {
         option (google.api.http) = {
             post: "/api/author"
             body: "*"
         };
     };
-    rpc GetAuthorList(google.protobuf.Empty) returns (stream ProtoAuthorRepo.ProtoAuthor) {
+    // ListAuthors is a server stream: authors are sent one by one instead of
+    // in one big array. Through REST this becomes one JSON object per line.
+    rpc ListAuthors(google.protobuf.Empty) returns (stream Author) {
         option (google.api.http) = {
             get: "/api/authors"
-        };        
-    };
-    rpc GetAuthorById(google.protobuf.Int64Value) returns (ProtoAuthorRepo.ProtoAuthor) {
-        option (google.api.http) = {
-            get: "/api/author/{value}"
-        };        
-    };
-	rpc UpdateAuthor(UpdateRequest) returns (ProtoAuthorRepo.ProtoAuthor) {
-        option (google.api.http) = {
-            put: "/api/author/{ID}"
-            body: "*"      
         };
     };
-	rpc DeleteAuthor(google.protobuf.Int64Value) returns (DeleteAuthorResponse) {
+    // {id} in the path fills GetAuthorRequest.id.
+    rpc GetAuthor(GetAuthorRequest) returns (Author) {
         option (google.api.http) = {
-            delete: "/api/author/{value}"
-        };        
+            get: "/api/author/{id}"
+        };
+    };
+    rpc UpdateAuthor(UpdateAuthorRequest) returns (Author) {
+        option (google.api.http) = {
+            put: "/api/author/{id}"
+            body: "*"
+        };
+    };
+    rpc DeleteAuthor(DeleteAuthorRequest) returns (DeleteAuthorResponse) {
+        option (google.api.http) = {
+            delete: "/api/author/{id}"
+        };
     };
 }
-
