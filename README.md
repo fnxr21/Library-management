@@ -170,57 +170,104 @@ docker compose up -d authordb categorydb bookdb userdb     # uses the root .env
 cd author-service && go run .                              # one terminal per service
 ```
 
+Comments marked `before:` compare each line with the old setup on `main` / `dev` (before this
+branch), where every service ran its own gateway and the databases had their own `db/.env`.
+
 `author-service/.env`
 ```env
-GRPC_PORT=6001          # cmd/server.go: gRPC listen port
-DB_HOST=localhost       # internal/config/postgres.go
-DB_PORT=4011            #   = DB_PORT_AUTHOR in the root .env (host port, NOT 5432)
-DB_NAME=author_mst
+GRPC_PORT=6001          # cmd/server.go: gRPC listen port            (before: same)
+DB_HOST=localhost       # internal/config/postgres.go                (before: same)
+DB_PORT=4011            # = DB_PORT_AUTHOR in the root .env, host port, NOT 5432
+                        #   (before: = DB_PORT_AUTHOR in db/.env)
+DB_NAME=author_mst      #                                            (before: same)
 DB_USER=YOUR_DB_USER         # must equal DB_USER in the root .env
-DB_PASSWORD=YOUR_DB_PASSWORD # must equal DB_PASSWORD in the root .env
+                             #   (before: had to match the user hardcoded in db/docker-compose.yml)
+DB_PASSWORD=YOUR_DB_PASSWORD # must equal DB_PASSWORD in the root .env (before: same, hardcoded)
+# IP_PORT=6000          # before: author-service ran its own REST gateway here.
+                        #   Now ignored; the only REST port is user-service IP_PORT.
 ```
 
 `category-service/.env`
 ```env
-GRPC_PORT=6003
+GRPC_PORT=6003          # (before: same)
 DB_HOST=localhost
-DB_PORT=4012            # = DB_PORT_CATEGORY
+DB_PORT=4012            # = DB_PORT_CATEGORY (before: = DB_PORT_CATEGORY in db/.env)
 DB_NAME=category_mst
 DB_USER=YOUR_DB_USER
 DB_PASSWORD=YOUR_DB_PASSWORD
+# IP_PORT=6002          # before: own REST gateway. Now ignored.
 ```
 
 `book-service/.env`
 ```env
-GRPC_PORT=6005
+GRPC_PORT=6005          # (before: same)
 DB_HOST=localhost
-DB_PORT=4013            # = DB_PORT_BOOK
+DB_PORT=4013            # = DB_PORT_BOOK (before: = DB_PORT_BOOK in db/.env)
 DB_NAME=book_mst
 DB_USER=YOUR_DB_USER
 DB_PASSWORD=YOUR_DB_PASSWORD
 AUTHOR_GRPC_ADDR=localhost:6001     # cmd/server.go dialGRPC: = GRPC_PORT of author-service
-CATEGORY_GRPC_ADDR=localhost:6003   # = GRPC_PORT of category-service
+                                    #   (before: did not exist, book-service called no other service)
+CATEGORY_GRPC_ADDR=localhost:6003   # = GRPC_PORT of category-service (before: did not exist)
+# IP_PORT=6004          # before: own REST gateway. Now ignored.
 ```
 
-`user-service/.env`
+`user-service/.env` (new: user-service and `userdb` did not exist before)
 ```env
 IP_PORT=6006            # public REST gateway port (= {{lm-url}} in Postman)
+                        #   (before: each service had its own IP_PORT 6000/6002/6004)
 GRPC_PORT=6007          # internal gRPC port of user-service
 DB_HOST=localhost
-DB_PORT=4014            # = DB_PORT_USER
+DB_PORT=4014            # = DB_PORT_USER (before: userdb was commented out)
 DB_NAME=user_mst
 DB_USER=YOUR_DB_USER
 DB_PASSWORD=YOUR_DB_PASSWORD
 AUTHOR_GRPC_ADDR=localhost:6001     # gateway routes /api/author*   here
 CATEGORY_GRPC_ADDR=localhost:6003   # gateway routes /api/categor*  here
 BOOK_GRPC_ADDR=localhost:6005       # gateway routes /api/book*     here
-JWT_SECRET=YOUR_RANDOM_SECRET_AT_LEAST_32_BYTES   # e.g. openssl rand -hex 32
-JWT_TTL=24h
-ADMIN_EMAIL=            # optional
+JWT_SECRET=YOUR_RANDOM_SECRET_AT_LEAST_32_BYTES   # e.g. openssl rand -hex 32 (before: no auth)
+JWT_TTL=24h             # optional, see below
+ADMIN_EMAIL=            # optional, see below
 ADMIN_PASSWORD=         # optional, 8-72 characters
 ```
 
 Running locally needs Go 1.23+.
+
+### Optional variables
+
+Leave these empty (or remove the line) and the service still starts:
+
+| Variable | Service | If empty | Optional case |
+|---|---|---|---|
+| `JWT_TTL` | user-service | tokens last `24h` | `JWT_TTL=30m` for short tokens while testing expiry; `JWT_TTL=168h` for a week. Any Go duration (`90s`, `2h45m`); an invalid value stops the service at startup |
+| `ADMIN_EMAIL` | user-service | no admin is created; register users through `POST /api/register` | Set it with `ADMIN_PASSWORD` to get an admin at startup, e.g. on a fresh `make reset` database |
+| `ADMIN_PASSWORD` | user-service | only read when `ADMIN_EMAIL` is set | Must be 8-72 characters, otherwise startup fails with `admin password must be 8-72 characters` |
+| `DB_PORT_AUTHOR` … `DB_PORT_USER` | root `.env` | defaults `4011`-`4014` | Change one when the port is already taken on your machine, then use the same value as `DB_PORT` in that service's `.env` |
+| `IP_PORT` | author / category / book | ignored | Leftover from the old setup, safe to keep or delete |
+
+Optional setups:
+
+- **Mix Docker and `go run`**: run everything with `make run`, then `docker compose stop author-service`
+  and start it with `go run .`. Its `.env` must use the root `DB_USER` / `DB_PASSWORD` and
+  `DB_PORT=4011`. Other containers still dial `author-service:6001` inside Docker, so only
+  standalone testing of that service works this way.
+- **Only one service**: author-service and category-service need nothing but their own database.
+  book-service also needs author- and category-service running; user-service needs all three.
+- **Shell instead of `.env`**: `DB_PORT=4111 go run .` overrides the file for one run, because a
+  variable already set in the shell wins.
+
+### Before vs now
+
+| | Before (`main` / `dev`) | Now (this branch) |
+|---|---|---|
+| Database settings | `db/.env` + `db/docker-compose.yml` | root `.env` + root `docker-compose.yml` |
+| DB user and password | hardcoded in `db/docker-compose.yml` | `DB_USER` / `DB_PASSWORD` in root `.env`, random from `make run` |
+| `DB_DEFAULTPORT` | needed (container port) | removed, fixed `5432` inside `docker-compose.yml` |
+| REST ports | `IP_PORT` per service (6000 / 6002 / 6004) | one gateway, user-service `IP_PORT=6006` |
+| Service to service | none | `*_GRPC_ADDR` in book-service and user-service |
+| Auth | none | `JWT_SECRET`, `JWT_TTL`, optional `ADMIN_*` |
+| Missing `.env` | service exits (`Error loading .env file`) | service logs a notice and uses environment variables |
+| Service `.env` in git | committed | git-ignored |
 
 ### How the files connect
 
