@@ -1,0 +1,61 @@
+// user.proto is the contract for user-service: accounts and login.
+// See author-service's author.proto for the general layout.
+syntax = "proto3";
+
+package library.user;
+
+// Generated Go code goes to protobuf/userpb, package userpb.
+option go_package = "/userpb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+
+// User never contains the password or its hash.
+message User {
+    uint64 id = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+    string username = 2;
+    string email = 3;
+    // "admin" or "member"
+    string role = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+message RegisterRequest {
+    string username = 1 [(google.api.field_behavior) = REQUIRED];
+    string email = 2 [(google.api.field_behavior) = REQUIRED];
+    string password = 3 [(google.api.field_behavior) = REQUIRED];
+}
+
+message LoginRequest {
+    string email = 1 [(google.api.field_behavior) = REQUIRED];
+    string password = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message LoginResponse {
+    // A JWT. Send it as "Authorization: Bearer <token>" on every other call.
+    string token = 1;
+    google.protobuf.Timestamp expires_at = 2;
+    User user = 3;
+}
+
+service UserService {
+    rpc Register(RegisterRequest) returns (User) {
+        option (google.api.http) = {
+            post: "/api/register"
+            body: "*"
+        };
+    };
+    rpc Login(LoginRequest) returns (LoginResponse) {
+        option (google.api.http) = {
+            post: "/api/login"
+            body: "*"
+        };
+    };
+    // GetCurrentUser returns the user identified by the gateway's verified token.
+    rpc GetCurrentUser(google.protobuf.Empty) returns (User) {
+        option (google.api.http) = {
+            get: "/api/me"
+        };
+    };
+}
