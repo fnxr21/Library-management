@@ -1,0 +1,148 @@
+# Credentials come from a .env file next to this file (see README). Never hardcode them here.
+x-db: &db
+  image: postgres:16-alpine
+  restart: unless-stopped
+  environment: &db-env
+    POSTGRES_USER: ${DB_USER:?set DB_USER in .env}
+    POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
+x-service-db-env: &service-db-env
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  DB_PORT: "5432"
+
+services:
+  authordb:
+    <<: *db
+    container_name: author-db
+    environment:
+      <<: *db-env
+      POSTGRES_DB: author_mst
+    ports:
+      - "127.0.0.1:${DB_PORT_AUTHOR:-4011}:5432"
+    volumes:
+      - authordb_data:/var/lib/postgresql/data
+      # Creates the tables on the first start of an empty volume (see db/README.md)
+      - ./db/schema/author.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  categorydb:
+    <<: *db
+    container_name: category-db
+    environment:
+      <<: *db-env
+      POSTGRES_DB: category_mst
+    ports:
+      - "127.0.0.1:${DB_PORT_CATEGORY:-4012}:5432"
+    volumes:
+      - categorydb_data:/var/lib/postgresql/data
+      # Creates the tables on the first start of an empty volume (see db/README.md)
+      - ./db/schema/category.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  bookdb:
+    <<: *db
+    container_name: book-db
+    environment:
+      <<: *db-env
+      POSTGRES_DB: book_mst
+    ports:
+      - "127.0.0.1:${DB_PORT_BOOK:-4013}:5432"
+    volumes:
+      - bookdb_data:/var/lib/postgresql/data
+      # Creates the tables on the first start of an empty volume (see db/README.md)
+      - ./db/schema/book.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  userdb:
+    <<: *db
+    container_name: user-db
+    environment:
+      <<: *db-env
+      POSTGRES_DB: user_mst
+    ports:
+      - "127.0.0.1:${DB_PORT_USER:-4014}:5432"
+    volumes:
+      - userdb_data:/var/lib/postgresql/data
+      # Creates the tables on the first start of an empty volume (see db/README.md)
+      - ./db/schema/user.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  # The only public entry point: REST/JSON + JWT check, then gRPC to the services below.
+  user-service:
+    build: ./user-service
+    restart: unless-stopped
+    environment:
+      <<: *service-db-env
+      IP_PORT: "6006"
+      GRPC_PORT: "6007"
+      DB_HOST: userdb
+      DB_NAME: user_mst
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_TTL: ${JWT_TTL:-24h}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      AUTHOR_GRPC_ADDR: author-service:6001
+      CATEGORY_GRPC_ADDR: category-service:6003
+      BOOK_GRPC_ADDR: book-service:6005
+    ports:
+      - "6006:6006"
+    depends_on:
+      userdb:
+        condition: service_healthy
+      author-service:
+        condition: service_started
+      category-service:
+        condition: service_started
+      book-service:
+        condition: service_started
+
+  # Internal gRPC services: no published ports, reachable only on the compose network.
+  author-service:
+    build: ./author-service
+    restart: unless-stopped
+    environment:
+      <<: *service-db-env
+      GRPC_PORT: "6001"
+      DB_HOST: authordb
+      DB_NAME: author_mst
+    depends_on:
+      authordb:
+        condition: service_healthy
+
+  category-service:
+    build: ./category-service
+    restart: unless-stopped
+    environment:
+      <<: *service-db-env
+      GRPC_PORT: "6003"
+      DB_HOST: categorydb
+      DB_NAME: category_mst
+    depends_on:
+      categorydb:
+        condition: service_healthy
+
+  book-service:
+    build: ./book-service
+    restart: unless-stopped
+    environment:
+      <<: *service-db-env
+      GRPC_PORT: "6005"
+      DB_HOST: bookdb
+      DB_NAME: book_mst
+      AUTHOR_GRPC_ADDR: author-service:6001
+      CATEGORY_GRPC_ADDR: category-service:6003
+    depends_on:
+      bookdb:
+        condition: service_healthy
+      author-service:
+        condition: service_started
+      category-service:
+        condition: service_started
+
+volumes:
+  authordb_data:
+  bookdb_data:
+  categorydb_data:
+  userdb_data:
