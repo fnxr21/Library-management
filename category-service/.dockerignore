@@ -1,0 +1,5 @@
+# keep secrets and local files out of the image
+.env
+.env.*
+Dockerfile
+*.md

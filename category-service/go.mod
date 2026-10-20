@@ -3,7 +3,6 @@ module github.com/fnxr21/category-service
 go 1.23.4
 
 require (
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.24.0
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20241118233622-e639e219e697
 	google.golang.org/grpc v1.68.0

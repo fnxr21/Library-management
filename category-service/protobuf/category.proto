@@ -1,62 +1,86 @@
-syntax = "proto3"; 
+// category.proto is the contract for category-service.
+//
+// One .proto file generates three things (see Makefile):
+//   - categorypb/category.pb.go       Go structs for every message
+//   - categorypb/category_grpc.pb.go  the gRPC server interface and client
+//   - REST handlers (in user-service) from the google.api.http options below
+//
+// Naming follows the protobuf style guide: messages are PascalCase, fields are
+// snake_case (JSON turns them into camelCase, e.g. category_id -> categoryId), and
+// each RPC has its own <Rpc>Request message so fields can be added later
+// without breaking other RPCs.
+syntax = "proto3";
 
-package protobuf_category;
+package library.category;
 
-option go_package="/protobuf_category";
+// Generated Go code goes to protobuf/categorypb, package categorypb.
+option go_package = "/categorypb";
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/wrappers.proto";
 import "google/api/annotations.proto";
 import "google/api/field_behavior.proto";
 
-
-message ProtoCategoryRepo {
-   message ProtoCategory {
-    uint64 ID = 1; // Use uint64 for the database ID.
-    string Name = 2 [(google.api.field_behavior) = REQUIRED, json_name = "name"];
-    string Description = 3 [(google.api.field_behavior) = REQUIRED, json_name = "description"];
-}
-    repeated ProtoCategory category = 1;
+// Category is what API clients see. It is not the database model; the handler
+// converts between the two (see internal/handler).
+message Category {
+    uint64 id = 1 [(google.api.field_behavior) = OUTPUT_ONLY];
+    string name = 2;
+    string description = 3;
 }
 
-message UpdateRequest {
-    uint64 ID = 1  [(google.api.field_behavior) = REQUIRED, json_name = "id"]; // Use uint64 for the database ID.
-    string Name = 2 ;
-    string Description=3;
+message CreateCategoryRequest {
+    string name = 1 [(google.api.field_behavior) = REQUIRED];
+    string description = 2;
+}
+
+message GetCategoryRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// UpdateCategoryRequest changes only the fields that are set (non-empty).
+message UpdateCategoryRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
+    string name = 2;
+    string description = 3;
+}
+
+message DeleteCategoryRequest {
+    uint64 id = 1 [(google.api.field_behavior) = REQUIRED];
 }
 
 message DeleteCategoryResponse {
     string message = 1;
 }
 
-
 service CategoryService {
-	rpc CreateCategory(ProtoCategoryRepo.ProtoCategory) returns (ProtoCategoryRepo.ProtoCategory) {
+    rpc CreateCategory(CreateCategoryRequest) returns (Category) {
         option (google.api.http) = {
             post: "/api/category"
             body: "*"
         };
     };
-    rpc GetCategoryList(google.protobuf.Empty) returns (stream ProtoCategoryRepo.ProtoCategory) {
+    // ListCategories is a server stream: categories are sent one by one instead of
+    // in one big array. Through REST this becomes one JSON object per line.
+    rpc ListCategories(google.protobuf.Empty) returns (stream Category) {
         option (google.api.http) = {
-            get: "/api/categorys"
-        };        
-    };
-    rpc GetCategoryById(google.protobuf.Int64Value) returns (ProtoCategoryRepo.ProtoCategory) {
-        option (google.api.http) = {
-            get: "/api/category/{value}"
-        };        
-    };
-	rpc UpdateCategory(UpdateRequest) returns (ProtoCategoryRepo.ProtoCategory) {
-        option (google.api.http) = {
-            put: "/api/category/{ID}"
-            body: "*"      
+            get: "/api/categories"
         };
     };
-	rpc DeleteCategory(google.protobuf.Int64Value) returns (DeleteCategoryResponse) {
+    // {id} in the path fills GetCategoryRequest.id.
+    rpc GetCategory(GetCategoryRequest) returns (Category) {
         option (google.api.http) = {
-            delete: "/api/category/{value}"
-        };        
+            get: "/api/category/{id}"
+        };
+    };
+    rpc UpdateCategory(UpdateCategoryRequest) returns (Category) {
+        option (google.api.http) = {
+            put: "/api/category/{id}"
+            body: "*"
+        };
+    };
+    rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse) {
+        option (google.api.http) = {
+            delete: "/api/category/{id}"
+        };
     };
 }
-
